@@ -1,8 +1,8 @@
 import { Volume2, Clock, AlertCircle, User } from "lucide-react";
 
-export default function MedicineCard() {
+export default function MedicineCard({ medicine }) {
   return (
-    <div className="max-w-4xl mx-auto bg-white border rounded-xl shadow-sm p-6">
+    <div className="max-w-5xl mx-auto bg-white border rounded-xl shadow-sm p-6">
 
       {/* Header */}
       <div className="flex justify-between items-start">

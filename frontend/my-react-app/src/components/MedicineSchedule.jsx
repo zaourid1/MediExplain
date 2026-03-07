@@ -33,7 +33,7 @@ export default function MedicineSchedule() {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto bg-blue-100 border rounded-2xl p-6">
+    <div className="max-w-5xl mx-auto bg-blue-100 border rounded-2xl p-6">
 
       {/* Header */}
       <div className="flex items-center gap-3 text-2xl font-semibold mb-6">

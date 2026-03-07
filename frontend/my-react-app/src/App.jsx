@@ -1,15 +1,17 @@
 import { useState } from "react";
 import "./App.css";
-import Dashboard from "./components/Dashboard";
-import Landing from "./components/Landing";
+import Dashboard from "./pages/Dashboard";
+import Landing from "./pages/Landing";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 function App() {
   return (
-    <div>
-      <Dashboard></Dashboard>
-      <div className="pt-100"></div>
-      <Landing></Landing>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
