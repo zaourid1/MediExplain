@@ -25,7 +25,7 @@ export default function Landing({ onUpload }) {
               Rx
             </span>
             <span className="font-semibold text-lg text-slate-900">
-              Prescription Help
+              MediExplain
             </span>
           </div>
           <button className="px-4 py-2 rounded-full border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-100">
@@ -58,9 +58,6 @@ export default function Landing({ onUpload }) {
                 >
                   <UploadCloud className="h-4 w-4" />
                   Upload Prescription
-                </button>
-                <button className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-medium text-slate-800 border border-slate-200 hover:bg-slate-100">
-                  How It Works
                 </button>
               </div>
 
@@ -101,10 +98,18 @@ export default function Landing({ onUpload }) {
                     Prescription preview
                   </div>
                   <div className="mt-4 space-y-2 text-xs">
-                    <div className="h-3 w-24 rounded-full bg-slate-200" />
-                    <div className="h-2 w-32 rounded-full bg-slate-100" />
-                    <div className="h-2 w-20 rounded-full bg-slate-100" />
-                    <div className="h-2 w-28 rounded-full bg-slate-100" />
+                    <div className="font-bold text-shadow-sm">
+                        Medicine Name - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+                    </div>
+                    <div className="font-semibold text-shadow-sm">
+                        Dosage - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+                    </div>
+                    <div className="font-semibold text-shadow-sm">
+                        When to Take - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+                    </div>
+                    <div className="font-semibold text-shadow-sm">
+                        Instructions - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+                    </div>
                   </div>
                 </div>
               </div>
@@ -190,7 +195,7 @@ export default function Landing({ onUpload }) {
         {/* Small footer strip */}
         <footer className="border-t bg-white/60">
           <div className="max-w-6xl mx-auto px-4 py-4 text-xs text-slate-500 flex flex-wrap items-center justify-between gap-2">
-            <span>© {new Date().getFullYear()} Prescription Help</span>
+            <span>© {new Date().getFullYear()} MediExplain</span>
             <div className="flex items-center gap-3">
               <span className="inline-flex items-center gap-1">
                 <Languages className="h-3 w-3" /> Multiple languages
