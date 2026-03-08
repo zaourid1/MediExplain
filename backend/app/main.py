@@ -1,32 +1,32 @@
 """
 MediExplain v2 - Main Application Entry Point
-
-Full pipeline:
-  Upload → Cloudinary → Gemini OCR/Analysis → ElevenLabs voice → Auth0 secured
 """
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.routers import explain, auth, voice, prescriptions
 
-from app.routers import explain, auth, voice
-
+# ✅ Define app FIRST
 app = FastAPI(
     title="MediExplain API v2",
     description="AI-powered prescription explanation with voice output.",
     version="2.0.0",
 )
 
+# ✅ Then add middleware ONCE
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # Lock to your frontend domain before going live
+    allow_origins=["http://localhost:5173"],  # lock to your frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# ✅ Then include routers
 app.include_router(explain.router, prefix="/api", tags=["Explain"])
 app.include_router(auth.router,    prefix="/api", tags=["Auth"])
-app.include_router(voice.router, tags=["Voice"])
+app.include_router(voice.router,              tags=["Voice"])
+app.include_router(prescriptions.router,      tags=["Prescriptions"])
 
 
 @app.get("/health", tags=["Health"])

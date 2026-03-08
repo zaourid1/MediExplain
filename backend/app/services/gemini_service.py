@@ -1,121 +1,132 @@
 """
 services/gemini_service.py
 
-Step 2 of the pipeline: Analyze the prescription using Gemini Vision.
+Step 2 of the pipeline: Analyze the uploaded image with Gemini Vision.
 
-We do OCR + interpretation in a single Gemini call:
-  - Extract the raw text from the image
-  - Identify medication names, dosages, instructions
-  - Simplify everything into patient-friendly language
-  - Return structured JSON
-
-Using gemini-1.5-flash: fast, cheap, handles images well.
+Responsibilities:
+  - Determine if the image is a prescription bottle/label
+  - If yes, extract structured fields + all raw text
+  - Return a clean, typed response for the API layer
 """
 
-import base64
 import json
+import re
 import google.generativeai as genai
+import httpx
 from app.config import settings
 
 genai.configure(api_key=settings.GEMINI_API_KEY)
 
-# Supported languages for the explanation output
+# Model with free-tier quota (GEMINI_MODEL in .env to override)
+# gemini-2.0-flash has limit: 0 on free tier; 2.5-flash-lite has 1000 RPD
+_model = genai.GenerativeModel(settings.GEMINI_MODEL)
+
 SUPPORTED_LANGUAGES = {
     "en": "English",
-    "fr": "French",
     "es": "Spanish",
-    "ar": "Arabic",
-    "zh": "Mandarin Chinese",
+    "fr": "French",
+    "de": "German",
     "hi": "Hindi",
+    "zh": "Chinese",
+    "ar": "Arabic",
+    "pt": "Portuguese",
 }
 
+# ── Prompt ────────────────────────────────────────────────────────────────────
 
-def analyze_prescription(image_bytes: bytes, mime_type: str, language_code: str = "en") -> dict:
-    """
-    Send prescription image to Gemini for full analysis.
+_SYSTEM_PROMPT = """
+You are a medical label extraction assistant. Your job is to analyze images and
+determine whether they show a prescription medication bottle or label, then
+extract all available information.
 
-    Args:
-        image_bytes:   Raw bytes of the prescription image.
-        mime_type:     e.g. "image/jpeg", "image/png"
-        language_code: Output language code (default: "en" for English)
+RULES:
+1. Only flag is_prescription=true if you can clearly see a pharmacy prescription
+   label (patient name, Rx number, or dispensing pharmacy details) OR a
+   medication bottle/packaging with clinical dosage instructions.
+2. Be conservative — a photo of pills without a label is NOT a prescription.
+3. Extract EVERY piece of visible text verbatim in raw_text, preserving line breaks.
+4. For structured fields, use null if the field is not visible/legible.
+5. Respond ONLY with valid JSON — no markdown, no explanation, no code fences.
 
-    Returns:
-        Structured dict with:
-          - raw_text:      Exact text extracted from the image
-          - medications:   List of { name, dosage, frequency, purpose }
-          - instructions:  Plain-language list of what the patient should do
-          - warnings:      Side effects and cautions to be aware of
-          - summary:       One paragraph overview for ElevenLabs to read aloud
-          - terms:         Medical jargon with plain-English definitions
-    """
-    model = genai.GenerativeModel("gemini-1.5-flash")
-
-    target_language = SUPPORTED_LANGUAGES.get(language_code, "English")
-
-    image_part = {
-        "inline_data": {
-            "mime_type": mime_type,
-            "data": base64.b64encode(image_bytes).decode("utf-8"),
-        }
-    }
-
-    prompt = f"""
-You are MediExplain, an AI healthcare assistant helping patients understand their prescriptions.
-Your response must be in {target_language}.
-
-Analyze this prescription image and respond ONLY with a valid JSON object.
-No markdown, no code fences, no extra text — just the raw JSON.
-
-Return this exact structure:
-{{
-  "raw_text": "Exact text as it appears in the image",
-  "medications": [
-    {{
-      "name": "Medication name",
-      "dosage": "e.g. 500mg",
-      "frequency": "e.g. twice daily",
-      "purpose": "Plain English: what this medicine does"
-    }}
-  ],
-  "instructions": [
-    "Step-by-step instruction in plain, simple language"
-  ],
-  "warnings": [
-    "Side effects or important cautions"
-  ],
-  "summary": "A warm, reassuring 2-3 sentence paragraph that a patient can listen to. Cover what was prescribed and the most important instructions.",
-  "terms": [
-    {{ "term": "Medical term", "definition": "Simple definition" }}
-  ]
-}}
-
-Rules:
-- Use simple words — aim for a Grade 6 reading level
-- Be warm and reassuring, not clinical or alarming
-- All text output must be in {target_language}
-- If the image is not a prescription, set raw_text to "Not a prescription" and leave all arrays empty
-- Never invent medications or instructions not visible in the image
+JSON schema to return:
+{
+  "is_prescription": boolean,
+  "confidence": "high" | "medium" | "low",
+  "rejection_reason": string | null,       // why it's not a prescription (if applicable)
+  "drug_name": string | null,
+  "brand_name": string | null,
+  "generic_name": string | null,
+  "dosage": string | null,                 // e.g. "10 mg"
+  "dosage_form": string | null,            // e.g. "tablet", "capsule", "liquid"
+  "frequency": string | null,              // e.g. "Take 1 tablet twice daily"
+  "quantity": string | null,               // e.g. "30 tablets"
+  "refills": string | null,
+  "prescriber": string | null,
+  "patient_name": string | null,
+  "pharmacy": string | null,
+  "rx_number": string | null,
+  "fill_date": string | null,
+  "expiry_date": string | null,
+  "warnings": [string],                    // any warning labels visible
+  "raw_text": string                       // ALL visible text, verbatim
+}
 """
 
-    response = model.generate_content([prompt, image_part])
-    raw = response.text.strip()
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-    # Strip accidental markdown fences
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-        raw = raw.strip()
+def _fetch_image_bytes(url: str) -> bytes:
+    """Download image bytes from a Cloudinary CDN URL."""
+    with httpx.Client(timeout=15) as client:
+        response = client.get(url)
+        response.raise_for_status()
+        return response.content
 
+
+def _parse_gemini_response(text: str) -> dict:
+    """
+    Safely parse JSON from Gemini's response.
+    Strips any accidental markdown fences just in case.
+    """
+    # Strip ```json ... ``` if present
+    clean = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
+    return json.loads(clean)
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
+
+def analyze_prescription(image_url: str) -> dict:
+    """
+    Analyze a prescription image hosted on Cloudinary.
+
+    Args:
+        image_url: Public HTTPS URL from Cloudinary.
+
+    Returns:
+        Parsed dict matching the JSON schema above.
+
+    Raises:
+        ValueError: If Gemini returns unparseable output.
+        httpx.HTTPError: If the image URL is unreachable.
+    """
+    # Download image and wrap for Gemini
+    image_bytes = _fetch_image_bytes(image_url)
+    image_part = {
+        "mime_type": "image/jpeg",   # Cloudinary serves JPEG by default
+        "data": image_bytes,
+    }
+
+    response = _model.generate_content(
+        [_SYSTEM_PROMPT, image_part],
+        generation_config=genai.types.GenerationConfig(
+            temperature=0.1,          # Low temp → deterministic extraction
+            max_output_tokens=2048,
+        ),
+    )
+
+    raw_text = response.text
     try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        # Fallback if Gemini returns unexpected format
-        return {
-            "raw_text": raw,
-            "medications": [],
-            "instructions": [],
-            "warnings": [],
-            "summary": raw,
-            "terms": [],
-        }
+        return _parse_gemini_response(raw_text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"Gemini returned non-JSON output: {raw_text[:300]}"
+        ) from exc

@@ -15,6 +15,7 @@ class Settings(BaseSettings):
 
     # ── Gemini (prescription analysis — REQUIRED) ─────────────────────────
     GEMINI_API_KEY: str
+    GEMINI_MODEL: str = "gemini-2.5-flash-lite"   # Override in .env if needed
 
     # ── ElevenLabs (voice — REQUIRED) ─────────────────────────────────────
     ELEVENLABS_API_KEY: str
