@@ -26,14 +26,24 @@ export default function MedicineCard({ language = "en" }) {
         }),
       });
 
-      const data = await response.json();
+      const text = await response.text();
+      let data;
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(
+          response.ok
+            ? "Invalid response from audio service"
+            : `Audio service error (${response.status}). Is the backend running?`
+        );
+      }
 
       if (!response.ok) {
         throw new Error(data.detail || `Request failed: ${response.status}`);
       }
 
       if (!data.audio_b64) {
-        throw new Error("No audio returned");
+        throw new Error("No audio returned. Check ElevenLabs API key in backend .env");
       }
 
       const audio = new Audio(`data:audio/mp3;base64,${data.audio_b64}`);

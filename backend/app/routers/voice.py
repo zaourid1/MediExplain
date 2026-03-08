@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.services.elevenlabs_service import generate_voice
 
@@ -12,5 +12,11 @@ class SpeakRequest(BaseModel):
 
 @router.post("/speak")
 async def speak(body: SpeakRequest):
-    audio_b64 = generate_voice(body.text, language_code=body.language_code)
-    return {"audio_b64": audio_b64}
+    try:
+        audio_b64 = generate_voice(body.text, language_code=body.language_code)
+        return {"audio_b64": audio_b64}
+    except Exception as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Voice generation failed: {str(e)}. Check ELEVENLABS_API_KEY in backend .env",
+        )

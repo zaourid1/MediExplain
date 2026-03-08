@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { UploadCloud, Camera, FileText, Languages, Headphones } from "lucide-react";
 
 export default function Landing({ onUpload }) {
@@ -28,9 +29,12 @@ export default function Landing({ onUpload }) {
               Prescription Help
             </span>
           </div>
-          <button className="px-4 py-2 rounded-full border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-100">
+          <Link
+            to="/login"
+            className="px-4 py-2 rounded-full border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-100 inline-block"
+          >
             Log In
-          </button>
+          </Link>
         </div>
       </header>
 
