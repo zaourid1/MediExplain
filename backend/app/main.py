@@ -8,7 +8,7 @@ Full pipeline:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import explain, auth
+from app.routers import explain, auth, voice
 
 app = FastAPI(
     title="MediExplain API v2",
@@ -26,6 +26,7 @@ app.add_middleware(
 
 app.include_router(explain.router, prefix="/api", tags=["Explain"])
 app.include_router(auth.router,    prefix="/api", tags=["Auth"])
+app.include_router(voice.router, tags=["Voice"])
 
 
 @app.get("/health", tags=["Health"])

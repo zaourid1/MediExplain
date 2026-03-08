@@ -19,11 +19,11 @@ class Settings(BaseSettings):
     # ── ElevenLabs (voice — REQUIRED) ─────────────────────────────────────
     ELEVENLABS_API_KEY: str
     # Default voice: calm, clear, medically appropriate
-    ELEVENLABS_VOICE_ID: str = "EXAVITQu4vr4xnSDxMaL"   # "Bella"
+    ELEVENLABS_VOICE_ID: str = "xKhbyU7E3bC6T89Kn26c"   # "Adam"
 
-    # ── Auth0 (JWT verification — REQUIRED) ───────────────────────────────
-    AUTH0_DOMAIN: str           # e.g. your-tenant.us.auth0.com
-    AUTH0_AUDIENCE: str         # e.g. https://mediexplain-api
+    # ── Auth0 (JWT verification — required for /api/explain and /api/me) ───
+    AUTH0_DOMAIN: str = ""      # e.g. your-tenant.us.auth0.com
+    AUTH0_AUDIENCE: str = ""    # e.g. https://mediexplain-api
 
     # ── App ───────────────────────────────────────────────────────────────
     MAX_FILE_SIZE_MB: int = 10

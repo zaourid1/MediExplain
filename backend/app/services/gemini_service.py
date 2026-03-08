@@ -22,13 +22,11 @@ genai.configure(api_key=settings.GEMINI_API_KEY)
 # Supported languages for the explanation output
 SUPPORTED_LANGUAGES = {
     "en": "English",
-    "es": "Spanish",
     "fr": "French",
-    "de": "German",
-    "hi": "Hindi",
-    "zh": "Chinese (Simplified)",
+    "es": "Spanish",
     "ar": "Arabic",
-    "pt": "Portuguese",
+    "zh": "Mandarin Chinese",
+    "hi": "Hindi",
 }
 
 
@@ -121,4 +119,3 @@ Rules:
             "summary": raw,
             "terms": [],
         }
- 

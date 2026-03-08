@@ -1,6 +1,51 @@
-import { Volume2, Clock, AlertCircle, User } from "lucide-react";
+import { useState } from "react";
+import { Volume2, Clock, AlertCircle, User, Loader2 } from "lucide-react";
 
-export default function MedicineCard({ medicine }) {
+export default function MedicineCard({ language = "en" }) {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleListen = async () => {
+    setIsLoading(true);
+
+    const script = `
+      Amoxicillin. Pink oval pill.
+      Dosage: 500 milligrams.
+      Take 3 times daily at 8am, 2pm, and 8pm.
+      Instructions: Take with food. Finish all medicine even if you feel better.
+      Possible side effects: Upset stomach, Diarrhea, Nausea, Headache.
+      Important warnings: Tell your doctor if you are allergic to penicillin. Finish all medicine. Do not drink alcohol.
+    `;
+
+    try {
+      const response = await fetch("/api/voice/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: script,
+          language_code: language,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || `Request failed: ${response.status}`);
+      }
+
+      if (!data.audio_b64) {
+        throw new Error("No audio returned");
+      }
+
+      const audio = new Audio(`data:audio/mp3;base64,${data.audio_b64}`);
+      await audio.play();
+    } catch (err) {
+      console.error("Audio failed:", err);
+      alert(`Could not play audio: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto bg-white border rounded-xl shadow-sm p-6">
 
@@ -11,9 +56,15 @@ export default function MedicineCard({ medicine }) {
           <p className="text-gray-500">Pink oval pill</p>
         </div>
 
-        <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-          <Volume2 size={18} />
-          Listen
+        <button
+          onClick={handleListen}
+          disabled={isLoading}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {isLoading
+            ? <><Loader2 size={18} className="animate-spin" /> Loading...</>
+            : <><Volume2 size={18} /> Listen</>
+          }
         </button>
       </div>
 

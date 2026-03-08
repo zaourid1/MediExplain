@@ -1,44 +1,113 @@
 """
 services/elevenlabs_service.py
 
-Step 3 of the pipeline: Convert the explanation to voice using ElevenLabs.
+Converts the prescription explanation to speech using ElevenLabs TTS.
 
-Returns base64-encoded MP3 — no file storage needed.
-Frontend plays it with: new Audio(`data:audio/mp3;base64,${audio_b64}`)
+Supported languages: English, French, Spanish, Arabic, Mandarin Chinese.
+Users can pick their language — each gets a curated default voice.
+Voice can also be overridden with any valid ElevenLabs voice_id.
 
-Language support:
-  ElevenLabs automatically handles pronunciation for different languages
-  when the text is already in that language (Gemini already translated it).
-  For best results with non-English, use a multilingual model.
+Returns base64 MP3 — frontend plays it instantly:
+    const audio = new Audio(`data:audio/mp3;base64,${audio_b64}`);
+    audio.play();
 """
 
 import base64
 import httpx
 from app.config import settings
 
-# eleven_multilingual_v2 handles 29 languages with natural pronunciation
+# eleven_multilingual_v2: best quality for non-English languages
 MULTILINGUAL_MODEL = "eleven_multilingual_v2"
-ENGLISH_MODEL      = "eleven_monolingual_v1"   # Faster + higher quality for English only
+# eleven_monolingual_v1: English only, slightly faster
+ENGLISH_MODEL = "eleven_monolingual_v1"
+
+# ── Language → Voice catalog ──────────────────────────────────────────────────
+# Voices selected for: clear diction, calm tone, natural pacing.
+# All voice IDs are from ElevenLabs' free shared voice library.
+
+LANGUAGE_VOICE_CATALOG: dict[str, dict] = {
+    "en": {
+        "voice_id":   "xKhbyU7E3bC6T89Kn26c",
+        "voice_name": "Adam",
+        "gender":     "male",
+        "language":   "English",
+        "note":       "Warm, clear — ideal for medical instructions",
+    },
+    "fr": {
+        "voice_id":   "HuLbOdhRlvQQN8oPP0AJ",
+        "voice_name": "Claire",
+        "gender":     "female",
+        "language":   "French",
+        "note":       "Clear Parisian French, calm cadence",
+    },
+    "es": {
+        "voice_id":   "y6WtESLj18d0diFRruBs",
+        "voice_name": "David",
+        "gender":     "male",
+        "language":   "Spanish",
+        "note":       "Natural Spanish pronunciation",
+    },
+    "ar": {
+        "voice_id":   "qi4PkV9c01kb869Vh7Su",
+        "voice_name": "Asmaa",
+        "gender":     "female",
+        "language":   "Arabic",
+        "note":       "Modern Standard Arabic, clear enunciation",
+    },
+    "hi": {
+        "voice_id":   "0UZ29F1kNDvmelKG8QCM",
+        "voice_name": "Raqib",
+        "gender":     "male",
+        "language":   "Hindi",
+        "note":       "Standard Arabic, clear",
+    },
+    "zh": {
+        "voice_id":   "DowyQ68vDpgFYdWVGjc3",
+        "voice_name": "Jason",
+        "gender":     "male",
+        "language":   "Mandarin Chinese",
+        "note":       "Standard Mandarin pronunciation",
+    },
+}
+
+DEFAULT_VOICE_ID = "xKhbyU7E3bC6T89Kn26c"  # Adam — English fallback
 
 
-def generate_voice(text: str, language_code: str = "en") -> str:
+def get_voice_for_language(language_code: str, voice_id_override: str | None = None) -> str:
     """
-    Convert text to speech using ElevenLabs.
+    Resolve the voice ID to use.
+
+    Priority:
+      1. voice_id_override — user picked a specific voice
+      2. Catalog default for the language
+      3. Fallback to Bella if somehow not found
+    """
+    if voice_id_override:
+        return voice_id_override
+    entry = LANGUAGE_VOICE_CATALOG.get(language_code)
+    return entry["voice_id"] if entry else DEFAULT_VOICE_ID
+
+
+def generate_voice(
+    text: str,
+    language_code: str = "en",
+    voice_id_override: str | None = None,
+) -> str:
+    """
+    Convert explanation text to speech.
 
     Args:
-        text:          The explanation text to speak aloud.
-        language_code: ISO language code — used to pick the right model.
+        text:              Plain-language explanation to speak.
+        language_code:     One of: en, fr, es, ar, zh, hi
+        voice_id_override: Optional ElevenLabs voice_id to use instead of default.
 
     Returns:
         Base64-encoded MP3 string.
-
-    Raises:
-        httpx.HTTPStatusError if ElevenLabs API call fails.
     """
-    # Use multilingual model for non-English languages
+    voice_id = get_voice_for_language(language_code, voice_id_override)
     model_id = ENGLISH_MODEL if language_code == "en" else MULTILINGUAL_MODEL
 
-    url = f"https://api.elevenlabs.io/v1/text-to-speech/{settings.ELEVENLABS_VOICE_ID}"
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
 
     headers = {
         "xi-api-key": settings.ELEVENLABS_API_KEY,
@@ -49,9 +118,9 @@ def generate_voice(text: str, language_code: str = "en") -> str:
         "text": text,
         "model_id": model_id,
         "voice_settings": {
-            "stability":        0.55,   # Higher = more consistent, less expressive
-            "similarity_boost": 0.75,   # Higher = closer to original voice
-            "style":            0.2,    # Slight warmth for a reassuring medical voice
+            "stability":         0.55,
+            "similarity_boost":  0.75,
+            "style":             0.20,
             "use_speaker_boost": True,
         },
     }
@@ -64,16 +133,13 @@ def generate_voice(text: str, language_code: str = "en") -> str:
 
 def build_voice_script(analysis: dict) -> str:
     """
-    Build a natural-sounding spoken script from the Gemini analysis.
-
-    Uses the pre-written summary + key instructions — avoids reading
-    the full raw_text which may contain confusing codes or abbreviations.
+    Build a spoken script from Gemini's analysis.
+    Reads summary → instructions → warnings. Skips raw_text and terms.
     """
     parts = []
 
-    summary = analysis.get("summary", "")
-    if summary:
-        parts.append(summary)
+    if analysis.get("summary"):
+        parts.append(analysis["summary"])
 
     instructions = analysis.get("instructions", [])
     if instructions:
@@ -86,3 +152,18 @@ def build_voice_script(analysis: dict) -> str:
         parts.extend(warnings)
 
     return " ".join(parts)
+
+
+def list_voices() -> list[dict]:
+    """Returns the voice catalog for the frontend language/voice picker."""
+    return [
+        {
+            "language_code": code,
+            "language":      entry["language"],
+            "voice_id":      entry["voice_id"],
+            "voice_name":    entry["voice_name"],
+            "gender":        entry["gender"],
+            "note":          entry["note"],
+        }
+        for code, entry in LANGUAGE_VOICE_CATALOG.items()
+    ]
