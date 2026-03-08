@@ -84,23 +84,26 @@ async def explain_prescription(
 
     # ── STEP 2: Gemini prescription analysis ──────────────────────────────
     try:
-        analysis = analyze_prescription(
-            image_bytes,
-            mime_type=file.content_type,
-            language_code=language,
-        )
+        extraction = analyze_prescription(cloudinary_result["url"])
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Prescription analysis failed: {str(e)}")
 
-    if analysis.get("raw_text") == "Not a prescription":
+    if not extraction.get("is_prescription", False):
         raise HTTPException(
             status_code=422,
             detail="The uploaded image does not appear to be a prescription. Please try again.",
         )
 
+    # Build voice script from extraction
+    voice_analysis = {
+        "summary": extraction.get("drug_name") or extraction.get("raw_text", "")[:200],
+        "instructions": [x for x in [extraction.get("frequency"), extraction.get("dosage")] if x],
+        "warnings": extraction.get("warnings", []),
+    }
+
     # ── STEP 3: ElevenLabs voice generation ───────────────────────────────
     try:
-        voice_script = build_voice_script(analysis)
+        voice_script = build_voice_script(voice_analysis)
         audio_b64 = generate_voice(voice_script, language_code=language)
     except Exception as e:
         # Voice failure is non-fatal — still return text explanation
@@ -111,7 +114,7 @@ async def explain_prescription(
     return JSONResponse(content={
         "success":   True,
         "image_url": cloudinary_result["url"],
-        "analysis":  analysis,
+        "analysis":  extraction,
         "audio_b64": audio_b64,
         "language":  language,
         "meta": {

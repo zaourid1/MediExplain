@@ -4,7 +4,7 @@ MediExplain v2 - Main Application Entry Point
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import explain, auth, voice
+from app.routers import explain, auth, voice, prescriptions
 
 # ✅ Define app FIRST
 app = FastAPI(
@@ -26,6 +26,7 @@ app.add_middleware(
 app.include_router(explain.router, prefix="/api", tags=["Explain"])
 app.include_router(auth.router,    prefix="/api", tags=["Auth"])
 app.include_router(voice.router,              tags=["Voice"])
+app.include_router(prescriptions.router,      tags=["Prescriptions"])
 
 
 @app.get("/health", tags=["Health"])
