@@ -1,4 +1,3 @@
-import { useState } from "react";
 import "./App.css";
 import Dashboard from "./pages/Dashboard";
 import Landing from "./pages/Landing";
@@ -36,7 +35,7 @@ function App() {
               <WelcomeSetup />
             </ProtectedRoute>
           } />
-          <Route path="/dashboard" element={
+          <Route path="/dashboard/*" element={
             <ProtectedRoute>
               <Dashboard />
             </ProtectedRoute>
