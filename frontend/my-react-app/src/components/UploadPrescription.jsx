@@ -316,7 +316,7 @@ function ResultsState({ data, onReset }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function UploadPrescription() {
+export default function UploadPrescription({ onPrescriptionAnalyzed }) {
   const { authFetch } = useAuthFetch();
   const [state, setState] = useState("idle");   // idle | uploading | analyzing | success | error | not_rx
   const [preview, setPreview] = useState(null);
@@ -343,12 +343,13 @@ export default function UploadPrescription() {
       } else {
         setResult(data);
         setState("success");
+        onPrescriptionAnalyzed?.(data);
       }
     } catch (err) {
       setErrorMsg(err.message);
       setState("error");
     }
-  }, [authFetch]);
+  }, [authFetch, onPrescriptionAnalyzed]);
 
   const reset = useCallback(() => {
     setState("idle");
