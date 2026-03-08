@@ -1,4 +1,3 @@
-import { useState } from "react";
 import "./App.css";
 import Dashboard from "./pages/Dashboard";
 import Landing from "./pages/Landing";
@@ -9,7 +8,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Landing />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard/*" element={<Dashboard />} />
       </Routes>
     </BrowserRouter>
   );

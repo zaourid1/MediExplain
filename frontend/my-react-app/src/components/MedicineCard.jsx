@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Volume2, Clock, AlertCircle, User, Loader2 } from "lucide-react";
+import LanguageCard from "./LanguageCard";
 
 export default function MedicineCard({ language = "en" }) {
   const [isLoading, setIsLoading] = useState(false);
@@ -47,6 +48,10 @@ export default function MedicineCard({ language = "en" }) {
   };
 
   return (
+    <>
+      <div className="pt-8"></div>
+    <LanguageCard></LanguageCard>
+      <div className="pt-8"></div>
     <div className="max-w-5xl mx-auto bg-white border rounded-xl shadow-sm p-6">
 
       {/* Header */}
@@ -143,5 +148,6 @@ export default function MedicineCard({ language = "en" }) {
             <span className="text-sm">Prescribed by: Sarah Johnson</span>
         </div>
     </div>
+    </>
   );
 }
